@@ -14,6 +14,6 @@ Our code will come soon.
 In this project we use (parts of) the official implementations of the following works:
 
 * [MobRecon](https://github.com/SeanChenxy/HandMesh) (Lightweight pipeline)
-* [HandOccNet](https://github.com/namepllet/HandOccNe) (HO3D and DexYCB datasets processing)
+* [HandOccNet](https://github.com/namepllet/HandOccNet) (HO3D and DexYCB datasets processing)
 
 We thank the respective authors for open sourcing their methods.
