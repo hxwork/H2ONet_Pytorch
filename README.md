@@ -15,11 +15,12 @@ Our presentation video: [[Youtube](https://www.youtube.com/watch?v=JN-G8ePC3Mk)]
 
 ## Todo List
 
-* [X] Single-frame model code
-* [X] Occlusion label preparation code for the DexYCB dataset
+* [X] ~~Single-frame model code~~
+* [X] ~~Occlusion label preparation code for the DexYCB dataset~~
 * [ ] Occlusion label preparation code for the HO3D dataset
 * [ ] Multi-frame model code
 * [ ] Training config details
+* [ ] model checkpoints
 
 ## Install
 
