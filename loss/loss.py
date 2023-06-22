@@ -102,88 +102,7 @@ class EdgeLengthLoss(nn.Module):
 def compute_loss(cfg, input, output):
 
     loss = {}
-    if cfg.model.name == "i2l":
-
-        coord_loss = CoordLoss()
-        param_loss = ParamLoss()
-        normal_loss = NormalVectorLoss(output["mesh_face"])
-        edge_loss = EdgeLengthLoss(output["mesh_face"])
-
-        if cfg.model.stage == "lixel":
-            joint_coord_img = output["joint_coord_img"]
-            mesh_coord_img = output["mesh_coord_img"]
-            joint_img_from_mesh = output["joint_img_from_mesh"]
-            loss["joint_fit"] = coord_loss(joint_coord_img, input["fit_joint_img"], input["fit_joint_trunc"] * input["is_valid_fit"][:, None, None])
-            loss["joint_orig"] = coord_loss(joint_coord_img, input["orig_joint_img"], input["orig_joint_trunc"], input["is_3D"])
-            loss["mesh_fit"] = coord_loss(mesh_coord_img, input["fit_mesh_img"], input["fit_mesh_trunc"] * input["is_valid_fit"][:, None, None])
-            loss["mesh_joint_orig"] = coord_loss(joint_img_from_mesh, input["orig_joint_img"], input["orig_joint_trunc"], input["is_3D"])
-            loss["mesh_joint_fit"] = coord_loss(joint_img_from_mesh, input["fit_joint_img"], input["fit_joint_trunc"] * input["is_valid_fit"][:, None, None])
-            loss["mesh_normal"] = normal_loss(mesh_coord_img, input["fit_mesh_img"],
-                                              input["fit_mesh_trunc"] * input["is_valid_fit"][:, None, None]) * cfg.loss.normal_loss_weight
-            loss["mesh_edge"] = edge_loss(mesh_coord_img, input["fit_mesh_img"], input["fit_mesh_trunc"] * input["is_valid_fit"][:, None, None])
-        else:
-            pose_param = output["pose_param"]
-            shape_param = output["shape_param"]
-            joint_coord_cam = output["joint_coord_cam"]
-            loss["pose_param"] = param_loss(pose_param, input["pose_param"], input["is_valid_fit"][:, None])
-            loss["shape_param"] = param_loss(shape_param, input["shape_param"], input["is_valid_fit"][:, None])
-            loss["joint_orig_cam"] = coord_loss(joint_coord_cam, input["orig_joint_cam"], input["orig_joint_valid"] * input["is_3D"][:, None, None])
-            loss["joint_fit_cam"] = coord_loss(joint_coord_cam, input["fit_joint_cam"], input["is_valid_fit"][:, None, None])
-
-    elif cfg.model.name == "hand_occ_net":
-
-        loss["mano_verts"] = 1e4 * F.mse_loss(output["pred_verts3d_cam"], output["gt_verts3d_cam"])
-        loss["mano_joints"] = 1e4 * F.mse_loss(output["pred_joints3d_cam"], output["gt_joints3d_cam"])
-        loss["mano_pose"] = 10 * F.mse_loss(output["pred_mano_pose"], output["gt_mano_pose"])
-        loss["mano_shape"] = 0.1 * F.mse_loss(output["pred_mano_shape"], output["gt_mano_shape"])
-        loss["joints_img"] = 100 * F.mse_loss(output["pred_joints_img"], input["joints_img"])
-
-    elif cfg.model.name == "semi_hand":
-
-        loss["mano_verts"] = 1e4 * F.mse_loss(output["pred_verts3d_cam"], output["gt_verts3d_cam"])
-        loss["mano_joints"] = 1e4 * F.mse_loss(output["pred_joints3d_cam"], output["gt_joints3d_cam"])
-        loss["mano_pose"] = 10 * F.mse_loss(output["pred_mano_pose"], output["gt_mano_pose"])
-        loss["mano_shape"] = 0.1 * F.mse_loss(output["pred_mano_shape"], output["gt_mano_shape"])
-        loss["joints_img"] = 1e2 * F.mse_loss(output["pred_joints_img"], input["joints_img"])
-        loss["shape_regul"] = 1e2 * F.mse_loss(output["pred_mano_shape"], torch.zeros_like(output["pred_mano_shape"]))
-        loss["pose_regul"] = 1 * F.mse_loss(output["pred_mano_pose"][:, 3:], torch.zeros_like(output["pred_mano_pose"][:, 3:]))
-
-    elif cfg.model.name == "mobrecon":
-        normal_loss = NormalVectorLoss(mano.face)
-        edge_loss = EdgeLengthLoss(mano.face)
-        loss["verts_loss"] = F.l1_loss(output["pred_verts3d_cam"], output["gt_verts3d_cam"])
-        loss["joint_img_loss"] = F.l1_loss(output["pred_joints_img"], input["joints_img"])
-        loss["normal_loss"] = 0.1 * normal_loss(output["pred_verts3d_cam"], output["gt_verts3d_cam"])
-        loss["edge_loss"] = edge_loss(output["pred_verts3d_cam"], output["gt_verts3d_cam"])
-
-    elif cfg.model.name in ["mobrecon_gr_v1", "mobrecon_gr_v2", "mobrecon_gr_v3", "mobrecon_r50_v1"]:
-        normal_loss = NormalVectorLoss(mano.face)
-        edge_loss = EdgeLengthLoss(mano.face)
-        # loss["verts_wo_gr_loss"] = F.l1_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
-        # loss["verts_w_gr_loss"] = F.l1_loss(output["pred_verts3d_w_gr"], output["gt_verts3d_w_gr"])
-        # loss["joints_wo_gr_loss"] = F.l1_loss(output["pred_joints3d_wo_gr"], output["gt_joints3d_wo_gr"])
-        # loss["joints_w_gr_loss"] = F.l1_loss(output["pred_joints3d_w_gr"], output["gt_joints3d_w_gr"])
-        # loss["joints2d_w_gr_loss"] = 100 * F.mse_loss(output["pred_joints2d_w_gr"], input["joints_img"])
-        # loss["glob_rot_loss"] = 10 * F.mse_loss(torch.matmul(output["pred_glob_rot_mat"].permute(0, 2, 1), output["gt_glob_rot_mat"]),
-        #                                         torch.eye(3).view(1, 3, 3).repeat(output["gt_glob_rot"].size()[0], 1, 1).to(output["gt_glob_rot_mat"].device))
-        # loss["rot_mat_loss"] = 10 * F.mse_loss(output["pred_rot_mat"], output["gt_rot_mat"])
-        # loss["joint_img_loss"] = 100 * F.mse_loss(output["pred_joints_img"], input["joints_img"])
-        # loss["normal_loss"] = 0.1 * normal_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
-        # loss["edge_loss"] = edge_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
-        # loss["normal_w_gr_loss"] = 0.1 * normal_loss(output["pred_verts3d_w_gr"], output["gt_verts3d_w_gr"])
-        # loss["edge_w_gr_loss"] = edge_loss(output["pred_verts3d_w_gr"], output["gt_verts3d_w_gr"])
-
-        loss["verts_wo_gr_loss"] = F.l1_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
-        loss["verts_w_gr_loss"] = F.l1_loss(output["pred_verts3d_w_gr"], output["gt_verts3d_w_gr"])
-        loss["joints_wo_gr_loss"] = F.l1_loss(output["pred_joints3d_wo_gr"], output["gt_joints3d_wo_gr"])
-        loss["joints_w_gr_loss"] = F.l1_loss(output["pred_joints3d_w_gr"], output["gt_joints3d_w_gr"])
-        loss["glob_rot_loss"] = F.mse_loss(torch.matmul(output["pred_glob_rot_mat"].permute(0, 2, 1), output["gt_glob_rot_mat"]),
-                                           torch.eye(3).view(1, 3, 3).repeat(output["gt_glob_rot"].size()[0], 1, 1).to(output["gt_glob_rot_mat"].device))
-        loss["joint_img_loss"] = F.l1_loss(output["pred_joints_img"], input["joints_img"])
-        loss["normal_loss"] = 0.1 * normal_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
-        loss["edge_loss"] = edge_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
-
-    elif cfg.model.name in ["mobrecon_gr_v4"]:
+    if cfg.loss.name in ["h2onet"]:
         normal_loss = NormalVectorLoss(mano.face)
         edge_loss = EdgeLengthLoss(mano.face)
         loss["verts_wo_gr_loss"] = F.l1_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
@@ -192,148 +111,8 @@ def compute_loss(cfg, input, output):
         loss["joints_w_gr_loss"] = F.l1_loss(output["pred_joints3d_w_gr"], output["gt_joints3d_w_gr"])
         loss["glob_rot_loss"] = F.mse_loss(output["pred_glob_rot_mat"], output["gt_glob_rot_mat"])
         loss["joint_img_loss"] = F.l1_loss(output["pred_joints_img"], input["joints_img"])
-        loss["normal_loss"] = 0.1 * normal_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
-        loss["edge_loss"] = edge_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
-
-    elif cfg.model.name in ["mobrecon_gr_v5"]:
-        normal_loss = NormalVectorLoss(mano.face)
-        edge_loss = EdgeLengthLoss(mano.face)
-        loss["verts_w_gr_loss"] = F.l1_loss(output["pred_verts3d_w_gr"], output["gt_verts3d_w_gr"])
-        loss["joints_w_gr_loss"] = F.l1_loss(output["pred_joints3d_w_gr"], output["gt_joints3d_w_gr"])
-        loss["glob_rot_loss"] = F.mse_loss(torch.matmul(output["pred_glob_rot_mat"].permute(0, 2, 1), output["gt_glob_rot_mat"]),
-                                           torch.eye(3).view(1, 3, 3).repeat(output["gt_glob_rot"].size()[0], 1, 1).to(output["gt_glob_rot_mat"].device))
-        loss["normal_loss"] = 0.1 * normal_loss(output["pred_verts3d_w_gr"], output["gt_verts3d_w_gr"])
-        loss["edge_loss"] = edge_loss(output["pred_verts3d_w_gr"], output["gt_verts3d_w_gr"])
-
-    elif cfg.model.name in ["mobrecon_wo_gr", "mobrecon_r50_wogr"]:
-        normal_loss = NormalVectorLoss(mano.face)
-        edge_loss = EdgeLengthLoss(mano.face)
-        loss["verts_wo_gr_loss"] = F.l1_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
-        # loss["verts_w_gr_loss"] = F.l1_loss(output["pred_verts3d_w_gr"], output["gt_verts3d_w_gr"])
-        # loss["glob_rot_loss"] = F.l1_loss(output["pred_glob_rot"], output["gt_glob_rot"])
-        loss["joint_img_loss"] = F.l1_loss(output["pred_joints_img"], input["joints_img"])
-        loss["normal_loss"] = 0.1 * normal_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
-        loss["edge_loss"] = edge_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
-
-    elif cfg.model.name in ["mobrecon_wogr_occ_v1"]:
-        normal_loss = NormalVectorLoss(mano.face)
-        edge_loss = EdgeLengthLoss(mano.face)
-        cls_loss = torch.nn.CrossEntropyLoss()
-        loss["verts_wo_gr_loss"] = F.l1_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
-        loss["joint_img_loss"] = F.l1_loss(output["pred_joints_img"], input["joints_img"])
-        loss["normal_loss"] = 0.1 * normal_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
-        loss["edge_loss"] = edge_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
-        loss["occ_loss"] = cls_loss(output["pred_occ"], output["gt_occ"].long())
-
-    elif cfg.model.name in ["mobrecon_mf_wogr_occ_v1", "mobrecon_mf_wogr_occ_v2", "mobrecon_mf_wogr_occ_v3"]:
-        normal_loss = NormalVectorLoss(mano.face)
-        edge_loss = EdgeLengthLoss(mano.face)
-        cls_loss = torch.nn.CrossEntropyLoss()
-        loss["verts_wo_gr_loss"] = F.l1_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
-        loss["joints_wo_gr_loss"] = F.l1_loss(output["pred_joints3d_wo_gr"], output["gt_joints3d_wo_gr"])
-        loss["joint_img_loss"] = F.l1_loss(output["pred_joints_img"], output["gt_joints_img"])
-        loss["normal_loss"] = 0.1 * normal_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
-        loss["edge_loss"] = edge_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
-        loss["occ_loss"] = cls_loss(output["pred_occ"], output["gt_occ"].long())
-
-    elif cfg.model.name in ["mobrecon_mf_wogr_occ_v4"]:
-        normal_loss = NormalVectorLoss(mano.face)
-        edge_loss = EdgeLengthLoss(mano.face)
-        cls_loss = torch.nn.CrossEntropyLoss()
-        loss["verts_wo_gr_loss"] = F.l1_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
-        loss["joints_wo_gr_loss"] = F.l1_loss(output["pred_joints3d_wo_gr"], output["gt_joints3d_wo_gr"])
-        loss["joint_img_loss"] = F.l1_loss(output["pred_joints_img"], output["gt_joints_img"])
-        loss["normal_loss"] = 0.1 * normal_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
-        loss["edge_loss"] = edge_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
-        loss["occ_loss"] = cls_loss(output["pred_occ"], output["gt_occ"].long())
-
-    elif cfg.model.name in ["mobrecon_mf_gr_occ_v1"]:
-        normal_loss = NormalVectorLoss(mano.face)
-        edge_loss = EdgeLengthLoss(mano.face)
-        cls_loss = torch.nn.CrossEntropyLoss()
-        loss["verts_w_gr_loss"] = F.l1_loss(output["pred_verts3d_w_gr"], output["gt_verts3d_w_gr"])
-        loss["joints_w_gr_loss"] = F.l1_loss(output["pred_joints3d_w_gr"], output["gt_joints3d_w_gr"])
-        loss["glob_rot_loss"] = F.mse_loss(torch.matmul(output["pred_glob_rot_mat"].permute(0, 2, 1), output["gt_glob_rot_mat"]),
-                                           torch.eye(3).view(1, 3, 3).repeat(output["gt_glob_rot"].size()[0], 1, 1).to(output["gt_glob_rot_mat"].device))
-        loss["joint_img_loss"] = F.l1_loss(output["pred_joints_img"], output["gt_joints_img"])
-        loss["normal_loss"] = 0.1 * normal_loss(output["pred_verts3d_w_gr"], output["gt_verts3d_w_gr"])
-        loss["edge_loss"] = edge_loss(output["pred_verts3d_w_gr"], output["gt_verts3d_w_gr"])
-        loss["occ_loss"] = cls_loss(output["pred_occ"], output["gt_occ"].long())
-
-    elif cfg.model.name in ["mobrecon_mf_gr_occ_v2"]:
-        normal_loss = NormalVectorLoss(mano.face)
-        edge_loss = EdgeLengthLoss(mano.face)
-        cls_loss = torch.nn.CrossEntropyLoss()
-        loss["verts_wo_gr_loss"] = F.l1_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
-        loss["joints_wo_gr_loss"] = F.l1_loss(output["pred_joints3d_wo_gr"], output["gt_joints3d_wo_gr"])
-        loss["verts_w_gr_loss"] = F.l1_loss(output["pred_verts3d_w_gr"], output["gt_verts3d_w_gr"])
-        loss["joints_w_gr_loss"] = F.l1_loss(output["pred_joints3d_w_gr"], output["gt_joints3d_w_gr"])
-        loss["glob_rot_loss"] = F.mse_loss(torch.matmul(output["pred_glob_rot_mat"].permute(0, 2, 1), output["gt_glob_rot_mat"]),
-                                           torch.eye(3).view(1, 3, 3).repeat(output["gt_glob_rot"].size()[0], 1, 1).to(output["gt_glob_rot_mat"].device))
-        loss["joint_img_loss"] = F.l1_loss(output["pred_joints_img"], output["gt_joints_img"])
-
         loss["normal_wo_gr_loss"] = 0.1 * normal_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
-        loss["edge_wo_loss"] = edge_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
-
-        loss["normal_loss"] = 0.1 * normal_loss(output["pred_verts3d_w_gr"], output["gt_verts3d_w_gr"])
-        loss["edge_loss"] = edge_loss(output["pred_verts3d_w_gr"], output["gt_verts3d_w_gr"])
-        loss["occ_loss"] = cls_loss(output["pred_occ"], output["gt_occ"].long())
-
-    elif cfg.model.name in ["mobrecon_mf_gr_occ_v3", "mobrecon_mf_gr_occ_v5", "mobrecon_mf_gr_occ_v5_abl_go"]:
-        normal_loss = NormalVectorLoss(mano.face)
-        edge_loss = EdgeLengthLoss(mano.face)
-        cls_loss = torch.nn.CrossEntropyLoss()
-        # loss["verts_wo_gr_loss"] = F.mse_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"]) * 1e4
-        # loss["joints_wo_gr_loss"] = F.mse_loss(output["pred_joints3d_wo_gr"], output["gt_joints3d_wo_gr"]) * 1e4
-        # loss["verts_w_gr_loss"] = F.mse_loss(output["pred_verts3d_w_gr"], output["gt_verts3d_w_gr"]) * 1e4
-        # loss["joints_w_gr_loss"] = F.mse_loss(output["pred_joints3d_w_gr"], output["gt_joints3d_w_gr"]) * 1e4
-        # loss["glob_rot_loss"] = F.mse_loss(torch.matmul(output["pred_glob_rot_mat"].permute(0, 2, 1), output["gt_glob_rot_mat"]),
-        #                                    torch.eye(3).view(1, 3, 3).repeat(output["gt_glob_rot"].size()[0], 1, 1).to(output["gt_glob_rot_mat"].device)) * 10
-        # loss["joint_img_loss"] = F.mse_loss(output["pred_joints_img"], output["gt_joints_img"]) * 100
-        # loss["occ_loss"] = cls_loss(output["pred_occ"], output["gt_occ"].long()) * 100
-
-        loss["verts_wo_gr_loss"] = F.l1_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
-        loss["joints_wo_gr_loss"] = F.l1_loss(output["pred_joints3d_wo_gr"], output["gt_joints3d_wo_gr"])
-        loss["verts_w_gr_loss"] = F.l1_loss(output["pred_verts3d_w_gr"], output["gt_verts3d_w_gr"])
-        loss["joints_w_gr_loss"] = F.l1_loss(output["pred_joints3d_w_gr"], output["gt_joints3d_w_gr"])
-        loss["glob_rot_loss"] = F.mse_loss(torch.matmul(output["pred_glob_rot_mat"].permute(0, 2, 1), output["gt_glob_rot_mat"]),
-                                           torch.eye(3).view(1, 3, 3).repeat(output["gt_glob_rot"].size()[0], 1, 1).to(output["gt_glob_rot_mat"].device))
-        loss["joint_img_loss"] = F.l1_loss(output["pred_joints_img"], output["gt_joints_img"])
-
-        loss["normal_wo_gr_loss"] = 10 * normal_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
-        loss["edge_wo_loss"] = 10 * edge_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
-
-        # loss["normal_loss"] = 10 * normal_loss(output["pred_verts3d_w_gr"], output["gt_verts3d_w_gr"])
-        # loss["edge_loss"] = 10 * edge_loss(output["pred_verts3d_w_gr"], output["gt_verts3d_w_gr"])
-        loss["occ_loss"] = cls_loss(output["pred_occ"], output["gt_occ"].long())
-
-    elif cfg.model.name in ["mobrecon_mf_gr_occ_v4"]:
-        normal_loss = NormalVectorLoss(mano.face)
-        edge_loss = EdgeLengthLoss(mano.face)
-        cls_loss = torch.nn.CrossEntropyLoss()
-        loss["verts_wo_gr_loss"] = F.l1_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
-        loss["joints_wo_gr_loss"] = F.l1_loss(output["pred_joints3d_wo_gr"], output["gt_joints3d_wo_gr"])
-        loss["verts_w_gr_loss"] = F.l1_loss(output["pred_verts3d_w_gr"], output["gt_verts3d_w_gr"])
-        loss["joints_w_gr_loss"] = F.l1_loss(output["pred_joints3d_w_gr"], output["gt_joints3d_w_gr"])
-        # loss["glob_rot_loss"] = F.mse_loss(torch.matmul(output["pred_glob_rot_mat"].permute(0, 2, 1), output["gt_glob_rot_mat"]),
-        #                                    torch.eye(3).view(1, 3, 3).repeat(output["gt_glob_rot"].size()[0], 1, 1).to(output["gt_glob_rot_mat"].device))
-        loss["joint_img_loss"] = F.l1_loss(output["pred_joints_img"], output["gt_joints_img"])
-
-        loss["normal_wo_gr_loss"] = 0.1 * normal_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
-        loss["edge_wo_loss"] = edge_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
-
-        loss["normal_loss"] = 0.1 * normal_loss(output["pred_verts3d_w_gr"], output["gt_verts3d_w_gr"])
-        loss["edge_loss"] = edge_loss(output["pred_verts3d_w_gr"], output["gt_verts3d_w_gr"])
-        loss["occ_loss"] = cls_loss(output["pred_occ"], output["gt_occ"].long())
-
-    elif cfg.model.name in ["mobrecon_multi_v0", "mobrecon_multi_v1", "mobrecon_multi_v2"]:
-        normal_loss = NormalVectorLoss(mano.face)
-        edge_loss = EdgeLengthLoss(mano.face)
-        loss["verts_loss"] = F.l1_loss(output["pred_verts3d_cam"], output["gt_verts3d_cam"])
-        loss["joint_img_loss"] = F.l1_loss(output["pred_joints_img"], output["gt_joints_img"])
-        loss["normal_loss"] = 0.1 * normal_loss(output["pred_verts3d_cam"], output["gt_verts3d_cam"])
-        loss["edge_loss"] = edge_loss(output["pred_verts3d_cam"], output["gt_verts3d_cam"])
-
+        loss["edge_wo_gr_loss"] = edge_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
     else:
         raise NotImplementedError
 
@@ -363,6 +142,7 @@ def align_w_scale(mtx1, mtx2, return_trafo=False):
     # apply trafos to the second matrix
     mtx2_t = np.dot(mtx2_t, R.T) * s
     mtx2_t = mtx2_t * s1 + t1
+
     if return_trafo:
         return R, s, s1, t1 - t2
     else:
@@ -372,38 +152,26 @@ def align_w_scale(mtx1, mtx2, return_trafo=False):
 def torch_align_w_scale(mtx1, mtx2, return_trafo=False):
     """ Align the predicted entity in some optimality sense with the ground truth. """
     # center
-    # t1 = mtx1.mean(0)
-    # t2 = mtx2.mean(0)
-    # mtx1_t = mtx1 - t1
-    # mtx2_t = mtx2 - t2
-
     t1 = torch.mean(mtx1, dim=1, keepdim=True)
     t2 = torch.mean(mtx2, dim=1, keepdim=True)
     mtx1_t = mtx1 - t1
     mtx2_t = mtx2 - t2
 
     # scale
-    # s1 = np.linalg.norm(mtx1_t) + 1e-8
-    # mtx1_t /= s1
-    # s2 = np.linalg.norm(mtx2_t) + 1e-8
-    # mtx2_t /= s2
     s1 = torch.linalg.matrix_norm(mtx1_t, dim=(-2, -1), keepdim=True) + 1e-8
     mtx1_t /= s1
     s2 = torch.linalg.matrix_norm(mtx2_t, dim=(-2, -1), keepdim=True) + 1e-8
     mtx2_t /= s2
 
     # orth alignment
-    # u, w, vt = np.linalg.svd(mtx2_t.T.dot(mtx1_t).T)
-    # R = u.dot(vt)
-    # s = w.sum()
     u, w, v = torch.svd(torch.matmul(mtx2_t.transpose(1, 2), mtx1_t).transpose(1, 2))
     R = torch.matmul(u, v.transpose(1, 2))
     s = torch.sum(w, dim=1, keepdim=True).unsqueeze(-1)
+
     # apply trafos to the second matrix
-    # mtx2_t = np.dot(mtx2_t, R.T) * s
-    # mtx2_t = mtx2_t * s1 + t1
     mtx2_t = torch.matmul(mtx2_t, R.transpose(1, 2)) * s
     mtx2_t = mtx2_t * s1 + t1
+
     if return_trafo:
         return R, s, s1, t1 - t2
     else:
@@ -423,119 +191,7 @@ def compute_occ_acc(pred_occ, gt_occ):
 
 def compute_metric(cfg, input, output):
     metric = {}
-    if cfg.model.name == "i2l":
-        # x,y: resize to input image space and perform bbox to image affine transform
-        mesh_out_img = output["mesh_coord_img"]
-        mesh_out_img[:, :, 0] = mesh_out_img[:, :, 0] / cfg.data.output_hm_shape[2] * cfg.data.input_img_shape[1]
-        mesh_out_img[:, :, 1] = mesh_out_img[:, :, 1] / cfg.data.output_hm_shape[1] * cfg.data.input_img_shape[0]
-        mesh_out_img_xy1 = torch.cat((mesh_out_img[:, :, :2], torch.ones_like(mesh_out_img[:, :, :1])), dim=2)
-        mesh_out_img[:, :, :2] = torch.matmul(input["bb2img_trans"], mesh_out_img_xy1.transpose(2, 1)).transpose(2, 1)[:, :, :2]
-
-        # z: devoxelize and translate to absolute depth
-        root_joint_depth = input["root_joint_depth"]
-        mesh_out_img[:, :, 2] = (mesh_out_img[:, :, 2] / cfg.data.output_hm_shape[0] * 2. - 1) * (cfg.data.bbox_3d_size / 2)
-        mesh_out_img[:, :, 2] = mesh_out_img[:, :, 2] + root_joint_depth[:, None]
-
-        # camera back-projection
-        focal = input["focal"]
-        princpt = input["princpt"]
-        joint_regressor = input["joint_regressor"]
-        mesh_out_cam = torch_pixel2cam(mesh_out_img, focal, princpt)
-
-        if cfg.model.stage == "param":
-            mesh_out_cam = output["mesh_coord_cam"]
-        joint_out_cam = torch.matmul(joint_regressor, mesh_out_cam)
-
-        vertex_3d = input["vertex_3d"]
-        joint_3d = input["joint_3d"]
-
-        vertex_3d_aligned = torch_align_w_scale(vertex_3d, mesh_out_cam)
-        joint_3d_aligned = torch_align_w_scale(joint_3d, joint_out_cam)
-
-        mesh_err = torch.mean(torch.norm(vertex_3d_aligned - vertex_3d, p=2, dim=2)) * 1000.
-        joint_err = torch.mean(torch.norm(joint_3d_aligned - joint_3d, p=2, dim=2)) * 1000.
-        metric["mesh_err"] = mesh_err
-        metric["joint_err"] = joint_err
-        metric["score"] = mesh_err + joint_err
-
-    elif cfg.model.name == "hand_occ_net":
-        metric["mano_verts"] = cfg.loss.lambda_mano_verts * F.mse_loss(output["pred_verts3d_cam"], output["gt_verts3d_cam"])
-        metric["mano_joints"] = cfg.loss.lambda_mano_joints * F.mse_loss(output["pred_joints3d_cam"], output["gt_joints3d_cam"])
-        metric["mano_pose"] = cfg.loss.lambda_mano_pose * F.mse_loss(output["pred_mano_pose"], output["gt_mano_pose"])
-        metric["mano_shape"] = cfg.loss.lambda_mano_shape * F.mse_loss(output["pred_mano_shape"], output["gt_mano_shape"])
-        metric["joints_img"] = cfg.loss.lambda_joints_img * F.mse_loss(output["pred_joints_img"], input["joints_img"])
-        metric["score"] = metric["mano_verts"] + metric["mano_joints"] + metric["mano_pose"] + metric["mano_shape"] + metric["joints_img"]
-
-    elif cfg.model.name == "semi_hand":
-        metric["mano_verts"] = 1e4 * F.mse_loss(output["pred_verts3d_cam"], output["gt_verts3d_cam"])
-        metric["mano_joints"] = 1e4 * F.mse_loss(output["pred_joints3d_cam"], output["gt_joints3d_cam"])
-        metric["mano_pose"] = 10 * F.mse_loss(output["pred_mano_pose"], output["gt_mano_pose"])
-        metric["mano_shape"] = 0.1 * F.mse_loss(output["pred_mano_shape"], output["gt_mano_shape"])
-        metric["joints_img"] = 1e2 * F.mse_loss(output["pred_joints_img"], input["joints_img"])
-        metric["shape_regul"] = 1e2 * F.mse_loss(output["pred_mano_shape"], torch.zeros_like(output["pred_mano_shape"]))
-        metric["pose_regul"] = 1 * F.mse_loss(output["pred_mano_pose"][:, 3:], torch.zeros_like(output["pred_mano_pose"][:, 3:]))
-        metric["score"] = metric["mano_verts"] + metric["mano_joints"] + metric["mano_pose"] + metric["mano_shape"] + metric["joints_img"]
-
-    elif cfg.model.name == "mobrecon":
-        normal_loss = NormalVectorLoss(mano.face)
-        edge_loss = EdgeLengthLoss(mano.face)
-        metric["verts_loss"] = F.l1_loss(output["pred_verts3d_cam"], output["gt_verts3d_cam"])
-        metric["joint_img_loss"] = F.l1_loss(output["pred_joints_img"], input["joints_img"])
-        metric["normal_loss"] = 0.1 * normal_loss(output["pred_verts3d_cam"], output["gt_verts3d_cam"])
-        metric["edge_loss"] = edge_loss(output["pred_verts3d_cam"], output["gt_verts3d_cam"])
-        metric["score"] = metric["verts_loss"] + metric["joint_img_loss"] + metric["normal_loss"] + metric["edge_loss"]
-
-    elif cfg.model.name in ["mobrecon_gr_v1", "mobrecon_gr_v2", "mobrecon_gr_v3"]:
-        normal_loss = NormalVectorLoss(mano.face)
-        edge_loss = EdgeLengthLoss(mano.face)
-        metric["verts_wo_gr"] = F.l1_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
-        metric["verts_w_gr"] = F.l1_loss(output["pred_verts3d_w_gr"], output["gt_verts3d_w_gr"])
-        metric["joints_wo_gr"] = F.l1_loss(output["pred_joints3d_wo_gr"], output["gt_joints3d_wo_gr"])
-        metric["joints_w_gr"] = F.l1_loss(output["pred_joints3d_w_gr"], output["gt_joints3d_w_gr"])
-        # metric["joints2d_w_gr"] = F.l1_loss(output["pred_joints2d_w_gr"], input["joints_img"])
-        # metric["glob_rot_loss"] = F.mse_loss(torch.matmul(output["pred_glob_rot_mat"].permute(0, 2, 1), output["gt_val_glob_rot_mat"]),
-        #                                      torch.eye(3).view(1, 3, 3).repeat(output["gt_val_glob_rot_mat"].size()[0], 1, 1).to(output["gt_val_glob_rot_mat"].device))
-        metric["joint_img"] = F.l1_loss(output["pred_joints_img"], input["joints_img"])
-        metric["normal"] = 0.1 * normal_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
-        metric["edge"] = edge_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
-        metric["score"] = metric["verts_w_gr"] + metric["verts_wo_gr"]
-
-        # # metrics
-        # pred_verts_w_gr = output["pred_verts3d_w_gr"]
-        # pred_joints_w_gr = output["pred_joints3d_w_gr"]
-        # # root centered
-        # pred_verts_w_gr -= pred_joints_w_gr[:, 0, None]
-        # pred_joints_w_gr -= pred_joints_w_gr[:, 0, None]
-        # # flip back to left hand
-        # do_flip = input["do_flip"].to(torch.int32)
-        # do_flip = do_flip * (-1) + (1 - do_flip)
-        # do_flip = torch.stack([do_flip, torch.ones_like(do_flip), torch.ones_like(do_flip)], dim=1)[:, None, :]
-        # pred_verts_w_gr *= do_flip
-        # pred_joints_w_gr *= do_flip
-
-        # gt_joints3d_w_gr = input["joints_coord_cam"]
-        # gt_verts3d_w_gr = output["gt_verts3d_w_gr"]
-        # gt_verts3d_w_gr = gt_verts3d_w_gr - output["gt_joints3d_w_gr"][:, 0, None]
-        # gt_joints3d_w_gr = gt_joints3d_w_gr - gt_joints3d_w_gr[:, 0, None]
-
-        # pred_verts_w_gr_aligned = torch_align_w_scale(gt_verts3d_w_gr, pred_verts_w_gr)
-        # pred_joints_w_gr_aligned = torch_align_w_scale(gt_joints3d_w_gr, pred_joints_w_gr)
-
-        # # m to mm
-        # gt_verts3d_w_gr *= 1000
-        # gt_joints3d_w_gr *= 1000
-
-        # pred_verts_w_gr *= 1000
-        # pred_joints_w_gr *= 1000
-        # pred_verts_w_gr_aligned *= 1000
-        # pred_joints_w_gr_aligned *= 1000
-
-        # metric["MPJPE"] = torch.sqrt(torch.sum((pred_joints_w_gr - gt_joints3d_w_gr)**2, dim=2)).mean(dim=1).mean(dim=0)
-        # metric["PA-MPJPE"] = torch.sqrt(torch.sum((pred_joints_w_gr_aligned - gt_joints3d_w_gr)**2, dim=2)).mean(dim=1).mean(dim=0)
-        # metric["MPVPE"] = torch.sqrt(torch.sum((pred_verts_w_gr - gt_verts3d_w_gr)**2, dim=2)).mean(dim=1).mean(dim=0)
-        # metric["PA-MPVPE"] = torch.sqrt(torch.sum((pred_verts_w_gr_aligned - gt_verts3d_w_gr)**2, dim=2)).mean(dim=1).mean(dim=0)
-
-    elif cfg.model.name in ["mobrecon_gr_v4"]:
+    if cfg.loss.name in ["h2onet"]:
         normal_loss = NormalVectorLoss(mano.face)
         edge_loss = EdgeLengthLoss(mano.face)
         metric["verts_wo_gr"] = F.l1_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
@@ -546,170 +202,6 @@ def compute_metric(cfg, input, output):
         metric["joint_img"] = F.l1_loss(output["pred_joints_img"], input["joints_img"])
         metric["normal"] = 0.1 * normal_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
         metric["edge"] = edge_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
-        metric["score"] = metric["verts_w_gr"] + metric["verts_wo_gr"]
-
-    elif cfg.model.name in ["mobrecon_gr_v5"]:
-        normal_loss = NormalVectorLoss(mano.face)
-        edge_loss = EdgeLengthLoss(mano.face)
-        metric["verts_wo_gr"] = F.l1_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
-        metric["verts_w_gr"] = F.l1_loss(output["pred_verts3d_w_gr"], output["gt_verts3d_w_gr"])
-        metric["joints_wo_gr"] = F.l1_loss(output["pred_joints3d_wo_gr"], output["gt_joints3d_wo_gr"])
-        metric["joints_w_gr"] = F.l1_loss(output["pred_joints3d_w_gr"], output["gt_joints3d_w_gr"])
-        metric["glob_rot_loss"] = F.mse_loss(torch.matmul(output["pred_glob_rot_mat"].permute(0, 2, 1), output["gt_glob_rot_mat"]),
-                                             torch.eye(3).view(1, 3, 3).repeat(output["gt_glob_rot"].size()[0], 1, 1).to(output["gt_glob_rot_mat"].device))
-        metric["joint_img"] = F.l1_loss(output["pred_joints_img"], input["joints_img"])
-        metric["normal"] = 0.1 * normal_loss(output["pred_verts3d_w_gr"], output["gt_verts3d_w_gr"])
-        metric["edge"] = edge_loss(output["pred_verts3d_w_gr"], output["gt_verts3d_w_gr"])
-        metric["score"] = metric["verts_w_gr"] + metric["joints_w_gr"]
-
-    elif cfg.model.name in ["mobrecon_wo_gr", "mobrecon_r50_wogr"]:
-        normal_loss = NormalVectorLoss(mano.face)
-        edge_loss = EdgeLengthLoss(mano.face)
-        metric["verts_wo_gr"] = F.l1_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
-        # metric["verts_w_gr"] = F.l1_loss(output["pred_verts3d_w_gr"], output["gt_verts3d_w_gr"])
-        # metric["glob_rot"] = F.l1_loss(output["pred_glob_rot"], output["gt_glob_rot"])
-        metric["joint_img"] = F.l1_loss(output["pred_joints_img"], input["joints_img"])
-        metric["normal"] = 0.1 * normal_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
-        metric["edge"] = edge_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
-        metric["score"] = metric["verts_wo_gr"]
-
-    elif cfg.model.name in ["mobrecon_wogr_occ_v1"]:
-        normal_loss = NormalVectorLoss(mano.face)
-        edge_loss = EdgeLengthLoss(mano.face)
-        cls_loss = torch.nn.CrossEntropyLoss()
-        metric["verts_wo_gr"] = F.l1_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
-        metric["joint_img"] = F.l1_loss(output["pred_joints_img"], input["joints_img"])
-        metric["normal"] = 0.1 * normal_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
-        metric["edge"] = edge_loss(output["pred_verts3d_wo_gr"], output["gt_verts3d_wo_gr"])
-        metric["occ"] = cls_loss(output["pred_occ"], output["gt_occ"].long())
-        occ_acc = compute_occ_acc(output["pred_occ"], output["gt_occ"])
-        metric.update(occ_acc)
-        metric["score"] = metric["verts_wo_gr"] + metric["occ"]
-
-    elif cfg.model.name in ["mobrecon_mf_wogr_occ_v1", "mobrecon_mf_wogr_occ_v2", "mobrecon_mf_wogr_occ_v3", "mobrecon_mf_wogr_occ_v4"]:
-        normal_loss = NormalVectorLoss(mano.face)
-        edge_loss = EdgeLengthLoss(mano.face)
-        cls_loss = torch.nn.CrossEntropyLoss()
-
-        B = output["pred_verts3d_wo_gr"].size()[0] // 3
-        metric["verts_wo_gr"] = F.l1_loss(output["pred_verts3d_wo_gr"][:B, ...], output["gt_verts3d_wo_gr"][:B, ...])
-        metric["joints_wo_gr"] = F.l1_loss(output["pred_joints3d_wo_gr"][:B, ...], output["gt_joints3d_wo_gr"][:B, ...])
-        metric["joint_img"] = F.l1_loss(output["pred_joints_img"][:B, ...], output["gt_joints_img"][:B, ...])
-        metric["normal"] = 0.1 * normal_loss(output["pred_verts3d_wo_gr"][:B, ...], output["gt_verts3d_wo_gr"][:B, ...])
-        metric["edge"] = edge_loss(output["pred_verts3d_wo_gr"][:B, ...], output["gt_verts3d_wo_gr"][:B, ...])
-        metric["occ"] = cls_loss(output["pred_occ"][:B, ...], output["gt_occ"][:B, ...].long())
-        occ_acc = compute_occ_acc(output["pred_occ"][:B, ...], output["gt_occ"][:B, ...])
-        metric.update(occ_acc)
-        metric["score"] = metric["verts_wo_gr"]
-
-    # elif cfg.model.name in ["mobrecon_mf_gr_occ_v1", "mobrecon_mf_gr_occ_v2", "mobrecon_mf_gr_occ_v3", "mobrecon_mf_gr_occ_v4"]:
-    #     normal_loss = NormalVectorLoss(mano.face)
-    #     edge_loss = EdgeLengthLoss(mano.face)
-    #     cls_loss = torch.nn.CrossEntropyLoss()
-
-    #     B = output["pred_verts3d_wo_gr"].size()[0] // 3
-    #     metric["verts_w_gr"] = F.l1_loss(output["pred_verts3d_w_gr"][:B, ...], output["gt_verts3d_w_gr"][:B, ...])
-    #     metric["joints_w_gr"] = F.l1_loss(output["pred_joints3d_w_gr"][:B, ...], output["gt_joints3d_w_gr"][:B, ...])
-    #     metric["verts_wo_gr"] = F.l1_loss(output["pred_verts3d_wo_gr"][:B, ...], output["gt_verts3d_wo_gr"][:B, ...])
-    #     metric["joints_wo_gr"] = F.l1_loss(output["pred_joints3d_wo_gr"][:B, ...], output["gt_joints3d_wo_gr"][:B, ...])
-    #     metric["glob_rot_loss"] = F.mse_loss(torch.matmul(output["pred_glob_rot_mat"][:B, ...].permute(0, 2, 1), output["gt_glob_rot_mat"][:B, ...]),
-    #                                          torch.eye(3).view(1, 3, 3).repeat(B, 1, 1).to(output["gt_glob_rot_mat"].device))
-    #     metric["joint_img"] = F.l1_loss(output["pred_joints_img"][:B, ...], output["gt_joints_img"][:B, ...])
-    #     metric["normal"] = 0.1 * normal_loss(output["pred_verts3d_w_gr"][:B, ...], output["gt_verts3d_w_gr"][:B, ...])
-    #     metric["edge"] = edge_loss(output["pred_verts3d_w_gr"][:B, ...], output["gt_verts3d_w_gr"][:B, ...])
-    #     metric["occ"] = cls_loss(output["pred_occ"][:B, ...], output["gt_occ"][:B, ...].long())
-    #     occ_acc = compute_occ_acc(output["pred_occ"][:B, ...], output["gt_occ"][:B, ...])
-    #     metric.update(occ_acc)
-    #     metric["score"] = metric["verts_w_gr"] + metric["joints_w_gr"]
-
-    elif cfg.model.name in [
-            "mobrecon_mf_gr_occ_v1", "mobrecon_mf_gr_occ_v2", "mobrecon_mf_gr_occ_v3", "mobrecon_mf_gr_occ_v4", "mobrecon_mf_gr_occ_v5", "mobrecon_mf_gr_occ_v5_abl_go"
-    ]:
-        normal_loss = NormalVectorLoss(mano.face)
-        edge_loss = EdgeLengthLoss(mano.face)
-        cls_loss = torch.nn.CrossEntropyLoss()
-
-        B = output["pred_verts3d_wo_gr"].size()[0] // 3
-        metric["verts_w_gr"] = F.l1_loss(output["pred_verts3d_w_gr"][:B, ...], output["gt_verts3d_w_gr"][:B, ...])
-        metric["joints_w_gr"] = F.l1_loss(output["pred_joints3d_w_gr"][:B, ...], output["gt_joints3d_w_gr"][:B, ...])
-        metric["verts_wo_gr"] = F.l1_loss(output["pred_verts3d_wo_gr"][:B, ...], output["gt_verts3d_wo_gr"][:B, ...])
-        metric["joints_wo_gr"] = F.l1_loss(output["pred_joints3d_wo_gr"][:B, ...], output["gt_joints3d_wo_gr"][:B, ...])
-        if "gt_val_glob_rot_mat" not in output:
-            metric["glob_rot_loss"] = F.mse_loss(torch.matmul(output["pred_glob_rot_mat"][:B, ...].permute(0, 2, 1), output["gt_glob_rot_mat"][:B, ...]),
-                                                 torch.eye(3).view(1, 3, 3).repeat(B, 1, 1).to(output["gt_glob_rot_mat"].device))
-        else:
-            metric["glob_rot_loss"] = F.mse_loss(
-                torch.matmul(output["pred_glob_rot_mat"].permute(0, 2, 1), output["gt_val_glob_rot_mat"]),
-                torch.eye(3).view(1, 3, 3).repeat(output["gt_val_glob_rot_mat"].size()[0], 1, 1).to(output["gt_val_glob_rot_mat"].device))
-
-        metric["joint_img"] = F.l1_loss(output["pred_joints_img"][:B, ...], output["gt_joints_img"][:B, ...])
-        metric["normal"] = 0.1 * normal_loss(output["pred_verts3d_w_gr"][:B, ...], output["gt_verts3d_w_gr"][:B, ...])
-        metric["edge"] = edge_loss(output["pred_verts3d_w_gr"][:B, ...], output["gt_verts3d_w_gr"][:B, ...])
-        metric["occ"] = cls_loss(output["pred_occ"][:B, ...], output["gt_occ"][:B, ...].long())
-        occ_acc = compute_occ_acc(output["pred_occ"][:B, ...], output["gt_occ"][:B, ...])
-        metric.update(occ_acc)
-        # metric["score"] = metric["verts_w_gr"] + metric["joints_w_gr"]
-
-        # # metrics
-        # pred_verts_w_gr = output["pred_verts3d_w_gr"][:B, ...]
-        # pred_joints_w_gr = output["pred_joints3d_w_gr"][:B, ...]
-        # # root centered
-        # pred_verts_w_gr -= pred_joints_w_gr[:, 0, None]
-        # pred_joints_w_gr -= pred_joints_w_gr[:, 0, None]
-        # # flip back to left hand
-        # do_flip = input["do_flip"].to(torch.int32)
-        # do_flip = do_flip * (-1) + (1 - do_flip)
-        # do_flip = torch.stack([do_flip, torch.ones_like(do_flip), torch.ones_like(do_flip)], dim=1)[:, None, :]
-        # pred_verts_w_gr *= do_flip
-        # pred_joints_w_gr *= do_flip
-
-        # gt_joints3d_w_gr = input["joints_coord_cam_0"]
-        # gt_verts3d_w_gr = output["gt_verts3d_w_gr"][:B, ...]
-        # gt_verts3d_w_gr -= output["gt_joints3d_w_gr"][:B, 0, None]
-        # gt_joints3d_w_gr -= gt_joints3d_w_gr[:, 0, None]
-
-        # pred_verts_w_gr_aligned = torch_align_w_scale(gt_verts3d_w_gr, pred_verts_w_gr)
-        # pred_joints_w_gr_aligned = torch_align_w_scale(gt_joints3d_w_gr, pred_joints_w_gr)
-
-        # # m to mm
-        # gt_verts3d_w_gr *= 1000
-        # gt_joints3d_w_gr *= 1000
-
-        # pred_verts_w_gr *= 1000
-        # pred_joints_w_gr *= 1000
-        # pred_verts_w_gr_aligned *= 1000
-        # pred_joints_w_gr_aligned *= 1000
-
-        # metric["MPJPE"] = torch.sqrt(torch.sum((pred_joints_w_gr - gt_joints3d_w_gr)**2, dim=2)).mean(dim=1).mean(dim=0)
-        # metric["PA-MPJPE"] = torch.sqrt(torch.sum((pred_joints_w_gr_aligned - gt_joints3d_w_gr)**2, dim=2)).mean(dim=1).mean(dim=0)
-        # metric["MPVPE"] = torch.sqrt(torch.sum((pred_verts_w_gr - gt_verts3d_w_gr)**2, dim=2)).mean(dim=1).mean(dim=0)
-        # metric["PA-MPVPE"] = torch.sqrt(torch.sum((pred_verts_w_gr_aligned - gt_verts3d_w_gr)**2, dim=2)).mean(dim=1).mean(dim=0)
-
-    elif cfg.model.name in ["mobrecon_mf_gr_occ_v5_abl_go"]:
-        normal_loss = NormalVectorLoss(mano.face)
-        edge_loss = EdgeLengthLoss(mano.face)
-        cls_loss = torch.nn.CrossEntropyLoss()
-
-        B = output["pred_verts3d_wo_gr"].size()[0] // 3
-        metric["verts_w_gr"] = F.l1_loss(output["pred_verts3d_w_gr"][:B, ...], output["gt_verts3d_w_gr"][:B, ...])
-        metric["joints_w_gr"] = F.l1_loss(output["pred_joints3d_w_gr"][:B, ...], output["gt_joints3d_w_gr"][:B, ...])
-        metric["verts_wo_gr"] = F.l1_loss(output["pred_verts3d_wo_gr"][:B, ...], output["gt_verts3d_wo_gr"][:B, ...])
-        metric["joints_wo_gr"] = F.l1_loss(output["pred_joints3d_wo_gr"][:B, ...], output["gt_joints3d_wo_gr"][:B, ...])
-        if "gt_val_glob_rot_mat" not in output:
-            metric["glob_rot_loss"] = F.mse_loss(torch.matmul(output["pred_glob_rot_mat"][:B, ...].permute(0, 2, 1), output["gt_glob_rot_mat"][:B, ...]),
-                                                 torch.eye(3).view(1, 3, 3).repeat(B, 1, 1).to(output["gt_glob_rot_mat"].device))
-        else:
-            metric["glob_rot_loss"] = F.mse_loss(
-                torch.matmul(output["pred_glob_rot_mat"].permute(0, 2, 1), output["gt_val_glob_rot_mat"]),
-                torch.eye(3).view(1, 3, 3).repeat(output["gt_val_glob_rot_mat"].size()[0], 1, 1).to(output["gt_val_glob_rot_mat"].device))
-
-        metric["joint_img"] = F.l1_loss(output["pred_joints_img"][:B, ...], output["gt_joints_img"][:B, ...])
-        metric["normal"] = 0.1 * normal_loss(output["pred_verts3d_w_gr"][:B, ...], output["gt_verts3d_w_gr"][:B, ...])
-        metric["edge"] = edge_loss(output["pred_verts3d_w_gr"][:B, ...], output["gt_verts3d_w_gr"][:B, ...])
-
-    elif cfg.model.name in ["mobrecon_mf_gr_occ_v3_fps", "mobrecon_gr_v2_fps", "handoccnet_fps", "semihand_fps", "mobrecon_fps"]:
-        metric["inference_time"] = output["inference_time"]
-        metric["score"] = metric["inference_time"]
 
     else:
         raise NotImplementedError

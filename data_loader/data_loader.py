@@ -7,11 +7,6 @@ from torch.utils.data import DataLoader, Dataset
 from data_loader.transforms import fetch_transforms
 from data_loader.DEX_YCB_SF import DEX_YCB_SF
 from data_loader.DEX_YCB_MF import DEX_YCB_MF
-from data_loader.HO3D import HO3D
-from data_loader.HO3DM import HO3DM
-from data_loader.HO3DGR import HO3DGR
-from data_loader.HO3DGR_MF import HO3DGR_MF
-from data_loader.HO3DGR_MF_RAM import HO3DGR_MF_RAM
 
 logger = logging.getLogger(__name__)
 
