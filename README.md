@@ -13,6 +13,14 @@ Our presentation video: [[Youtube](https://www.youtube.com/watch?v=JN-G8ePC3Mk)]
 
 ![poster](./files/poster.png)
 
+## Todo List
+
+* [X] Single-frame model code
+* [X] Occlusion label preparation code for the DexYCB dataset
+* [ ] Occlusion label preparation code for the HO3D dataset
+* [ ] Multi-frame model code
+* [ ] Training config details
+
 ## Install
 
 * Environment
@@ -59,8 +67,10 @@ Our single-frame model does not need the occlusion prediction. To train the fing
 For training our single-frame model on the DexYCB dataset,
 
 ```
-python3 train.py --model_dir=./experiment/experiment_single_dexycb/
+python3 train.py --model_dir=./experiment/single_frame_dexycb/
 ```
+
+Note that we only provide a reference config currently and will provide more details in the near future. We adopt a two-stage training strategy: (i) hand shape reconstruction at canonical pose; and (ii) hand orientation regression based on the model trained in (i).
 
 ## Citation
 
