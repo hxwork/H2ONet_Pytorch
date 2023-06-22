@@ -20,7 +20,7 @@ Our presentation video: [[Youtube](https://www.youtube.com/watch?v=JN-G8ePC3Mk)]
 * [ ] Occlusion label preparation code for the HO3D dataset
 * [ ] Multi-frame model code
 * [ ] Training config details
-* [ ] model checkpoints
+* [ ] model checkpoints and evaluation code
 
 ## Install
 
