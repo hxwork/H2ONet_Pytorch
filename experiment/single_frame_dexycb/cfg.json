@@ -4,7 +4,7 @@
         "model_dir": "experiment/single_frame_dexycb"
     },
     "data": {
-        "name": "DEX_YCB",
+        "name": "DEX_YCB_SF",
         "transforms_type": "h2onet",
         "eval_type": [
             "test"
